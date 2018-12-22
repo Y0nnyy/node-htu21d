@@ -73,7 +73,7 @@ htu21d.prototype.readTemperature = function(callback) {
     this.i2c = i2c.open(that.i2cbus, function(err) {
         if (err) throw err;
 
-        that.i2c.writeByte(HTU21D_I2CADDR, HTU21D_READTEMP_NH, function(err) {
+        that.i2c.sendByte(HTU21D_I2CADDR, HTU21D_READTEMP_NH, function(err) {
             if (err) throw err;
             else {
                 setTimeout(function() {
@@ -100,7 +100,7 @@ htu21d.prototype.readHumidity = function(callback) {
     this.i2c = i2c.open(this.i2cbus, function (err) {
         if(err) throw err;
 
-        that.i2c.writeByte(HTU21D_I2CADDR, HTU21D_READHUMI_NH, function(err) {
+        that.i2c.sendByte(HTU21D_I2CADDR, HTU21D_READHUMI_NH, function(err) {
             if (err) throw err;
             else {
                 setTimeout(function() {
@@ -160,10 +160,10 @@ function raspi_i2c_bus()
         //console.log('Raspberry Pi board revision: ', revisionInt);
         // Older boards use i2c-0, newer boards use i2c-1
         if ((revisionInt === 2) || (revisionInt === 3)) {
-            return '0';
+            return 0;
         }
         else {
-            return '1';
+            return 1;
         }
     }
     catch(e) {
