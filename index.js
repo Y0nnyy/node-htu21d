@@ -47,7 +47,7 @@ const htu21d = function (i2copts_arg) {
     let i2copts;
     let raspi_check;
     if (typeof i2copts_arg === 'undefined') {
-        i2copts = {bus: '1'};
+        i2copts = {bus: 1};
         raspi_check = raspi_i2c_bus();
         if (raspi_check !== '') {
             //console.log('Raspberry Pi I2C device name is: ', raspi_check);
@@ -77,11 +77,12 @@ htu21d.prototype.readTemperature = function(callback) {
             if (err) throw err;
             else {
                 setTimeout(function() {
-                    that.i2c.i2cRead(HTU21D_I2CADDR, 3, function(err, data) {
+                    let buffer = Buffer.alloc(3);
+                    that.i2c.i2cRead(HTU21D_I2CADDR, 3, buffer, function(err) {
                         if (err) throw err;
                         else {
-                            if ((data.length === 3) && calc_crc8(data, 3)) {
-                                let rawtemp = ((data[0] << 8) | data[1]) & 0xFFFC;
+                            if ((buffer.length === 3) && calc_crc8(buffer, 3)) {
+                                let rawtemp = ((buffer[0] << 8) | buffer[1]) & 0xFFFC;
                                 let temperature = ((rawtemp / 65536.0) * 175.72) - 46.85;
                                 //console.log("Temperature, C:", temperature.toFixed(1));
                                 callback(temperature.toFixed(1));
@@ -104,11 +105,12 @@ htu21d.prototype.readHumidity = function(callback) {
             if (err) throw err;
             else {
                 setTimeout(function() {
-                    that.i2c.i2cRead(HTU21D_I2CADDR, 3, function(err, data) {
+                    let buffer = Buffer.alloc(3);
+                    that.i2c.i2cRead(HTU21D_I2CADDR, 3, buffer, function(err) {
                         if (err) throw err;
                         else {
-                            if ((data.length === 3) && calc_crc8(data, 3)) {
-                                var rawhumi = ((data[0] << 8) | data[1]) & 0xFFFC;
+                            if ((buffer.length === 3) && calc_crc8(buffer, 3)) {
+                                var rawhumi = ((buffer[0] << 8) | buffer[1]) & 0xFFFC;
                                 var humidity = ((rawhumi / 65536.0) * 125.0) - 6.0;
                                 //console.log("Relative Humidity, %:", humidity);
                                 callback(humidity.toFixed(1));
