@@ -16,14 +16,14 @@ htu21df.readTemperature(function (temp) {
         console.log('new i2c_htu21d({});');
         var htu21df_1 = new i2c_htu21d({});
         console.log("new i2c_htu21d({device: ''});");
-        var htu21df_2 = new i2c_htu21d({device: ''});
+        var htu21df_2 = new i2c_htu21d({bus: ''});
         console.log("new i2c_htu21d({device: '/dev/i2c-1'});");
-        var htu21df_3 = new i2c_htu21d({device: '/dev/i2c-1'});
+        var htu21df_3 = new i2c_htu21d({bus: '1'});
         console.log("new i2c_htu21d({otherops: 'nada'});");
         var htu21df_4 = new i2c_htu21d({otherops: 'nada'});
         console.log("new i2c_htu21d({device: '/dev/i2c-9'});");
         try {
-            var htu21df_5 = new i2c_htu21d({device: '/dev/i2c-9'});
+            var htu21df_5 = new i2c_htu21d({bus: '9'});
         } catch (e) {
             console.log('i2c fail');
         }

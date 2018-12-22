@@ -22,8 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var i2c = require('i2c');
+var i2c = require('i2c-bus');
 var fs=require('fs');
+//var Promise = require("bluebird");
 
 var MAX_TEMP_CONVERSION     = 50;   // milliseconds
 var MAX_HUMI_CONVERSION     = 16;   // ms
@@ -36,88 +37,88 @@ var HTU21D_WRITEREG         = 0xE6;
 var HTU21D_READREG          = 0xE7;
 var HTU21D_RESET            = 0xFE;
 
+var i2cbus = 0;
+
 // The regular versions of the READTEMP and READHUMI commands depend 
 // on clock stretching/hold  which seems to be a problem the 
 // raspberry pi i2c controller.
 
-var htu21d = function (i2copts_arg) {
-    var i2copts;
-    var raspi_check;
+const htu21d = function (i2copts_arg) {
+    let i2copts;
+    let raspi_check;
     if (typeof i2copts_arg === 'undefined') {
-        i2copts = {device: '/dev/i2c-1'};
-        raspi_check = raspi_i2c_devname();
+        i2copts = {bus: '1'};
+        raspi_check = raspi_i2c_bus();
         if (raspi_check !== '') {
             //console.log('Raspberry Pi I2C device name is: ', raspi_check);
-            i2copts.device = raspi_check;
+            i2copts.bus = raspi_check;
         }
     }
     else {
         i2copts = i2copts_arg;
-        if ((typeof i2copts.device === 'undefined') || (i2copts.device === '')) {
-            raspi_check = raspi_i2c_devname();
+        if ((typeof i2copts.bus === 'undefined') || (i2copts.bus === '')) {
+            raspi_check = raspi_i2c_bus();
             if (raspi_check !== '') {
                 //console.log('Raspberry Pi I2C device name is: ', raspi_check);
-                i2copts.device = raspi_check;
+                i2copts.bus = raspi_check;
             }
         }
     }
     //console.log('i2c options: ', i2copts);
-    this.i2c        = new i2c(HTU21D_I2CADDR, i2copts);
+    this.i2cbus = i2copts.bus;
 };
 
 htu21d.prototype.readTemperature = function(callback) {
-    var that = this;
-    this.i2c.writeByte(HTU21D_READTEMP_NH, function(err) {
-        if (err) {
-            console.log(err);
-            return err;
-        }
-        else {
-            setTimeout(function() {
-                that.i2c.read(3, function(err, data) {
-                    if (err) {
-                        console.log(err);
-                        return err;
-                    } else {
-                        if ((data.length === 3) && calc_crc8(data, 3)) {
-                            var rawtemp = ((data[0] << 8) | data[1]) & 0xFFFC;
-                            var temperature = ((rawtemp / 65536.0) * 175.72) - 46.85;
-                            //console.log("Temperature, C:", temperature.toFixed(1));
-                            callback(temperature.toFixed(1));
+    const that = this;
+    this.i2c = i2c.open(that.i2cbus, function(err) {
+        if (err) throw err;
+
+        that.i2c.writeByte(HTU21D_I2CADDR, HTU21D_READTEMP_NH, function(err) {
+            if (err) throw err;
+            else {
+                setTimeout(function() {
+                    that.i2c.i2cRead(HTU21D_I2CADDR, 3, function(err, data) {
+                        if (err) throw err;
+                        else {
+                            if ((data.length === 3) && calc_crc8(data, 3)) {
+                                let rawtemp = ((data[0] << 8) | data[1]) & 0xFFFC;
+                                let temperature = ((rawtemp / 65536.0) * 175.72) - 46.85;
+                                //console.log("Temperature, C:", temperature.toFixed(1));
+                                callback(temperature.toFixed(1));
+                            }
                         }
-                    }
-                });
-            }, MAX_TEMP_CONVERSION);
-        }
+                    });
+                }, MAX_TEMP_CONVERSION);
+            }
+        });
+
     });
 };
 
 htu21d.prototype.readHumidity = function(callback) {
-    var that = this;
-    this.i2c.writeByte(HTU21D_READHUMI_NH, function(err) {
-        if (err) {
-            console.log(err);
-            return err;
-        }
-        else {
-            setTimeout(function() {
-                that.i2c.read(3, function(err, data) {
-                    if (err) {
-                        console.log(err);
-                        return err;
-                    } else {
-                        if ((data.length === 3) && calc_crc8(data, 3)) {
-                            var rawhumi = ((data[0] << 8) | data[1]) & 0xFFFC;
-                            var humidity = ((rawhumi / 65536.0) * 125.0) - 6.0;
-                            //console.log("Relative Humidity, %:", humidity);
-                            callback(humidity.toFixed(1));
-                        }
-                    }
-                });
-            }, MAX_HUMI_CONVERSION);
-        }
-    });
+    const that = this;
+    this.i2c = i2c.open(this.i2cbus, function (err) {
+        if(err) throw err;
 
+        that.i2c.writeByte(HTU21D_I2CADDR, HTU21D_READHUMI_NH, function(err) {
+            if (err) throw err;
+            else {
+                setTimeout(function() {
+                    that.i2c.i2cRead(HTU21D_I2CADDR, 3, function(err, data) {
+                        if (err) throw err;
+                        else {
+                            if ((data.length === 3) && calc_crc8(data, 3)) {
+                                var rawhumi = ((data[0] << 8) | data[1]) & 0xFFFC;
+                                var humidity = ((rawhumi / 65536.0) * 125.0) - 6.0;
+                                //console.log("Relative Humidity, %:", humidity);
+                                callback(humidity.toFixed(1));
+                            }
+                        }
+                    });
+                }, MAX_HUMI_CONVERSION);
+            }
+        });
+    })
 };
 
 // buf = 3 bytes from the HTU21D-F for temperature or humidity
@@ -151,7 +152,7 @@ function calc_crc8(buf, len)
 
 // If the system is a Raspberry Pi return the correct i2c device name. Else
 // return empty string.
-function raspi_i2c_devname()
+function raspi_i2c_bus()
 {
     try {
         var revisionBuffer = fs.readFileSync('/sys/module/bcm2708/parameters/boardrev');
@@ -159,10 +160,10 @@ function raspi_i2c_devname()
         //console.log('Raspberry Pi board revision: ', revisionInt);
         // Older boards use i2c-0, newer boards use i2c-1
         if ((revisionInt === 2) || (revisionInt === 3)) {
-            return '/dev/i2c-0';
+            return '0';
         }
         else {
-            return '/dev/i2c-1';
+            return '1';
         }
     }
     catch(e) {
